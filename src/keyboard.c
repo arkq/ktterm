@@ -12,7 +12,8 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <json/json.h>
+
+#include <json.h>
 
 #include "ktutils.h"
 
