@@ -4,7 +4,7 @@
  *
  * This file is a part of a ktterm.
  *
- * This projected is licensed under the terms of the MIT license.
+ * This project is licensed under the terms of the MIT license.
  *
  */
 
