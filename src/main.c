@@ -213,16 +213,16 @@ int main(int argc, char *argv[]) {
 	int font_size = KT_VTE_FONT_SIZE;
 	const char *resources_dir = DATADIR;
 
-	while ((opt = getopt(argc, argv, "hKR:e:f:rv")) != -1)
+	while ((opt = getopt(argc, argv, "hKR:e:frs:")) != -1)
 		switch (opt) {
 		case 'h':
 			printf("usage: %s [options] [-e CMD [ args ]]\n"
 					"  -K\t\tuse build-in Kindle keyboard\n"
 					"  -R DIR\tuse DIR as a resources directory\n"
 					"  -e CMD\trun command with its arguments\n"
-					"  -f NB\t\tset terminal font size to NB\n"
+					"  -f\t\trun in the full-screen mode\n"
 					"  -r\t\tuse reversed color palette\n"
-					"  -v\t\trun in the full-screen mode\n",
+					"  -s NB\t\tset terminal font size to NB\n",
 					argv[0]);
 			return EXIT_SUCCESS;
 
@@ -236,13 +236,13 @@ int main(int argc, char *argv[]) {
 			argv = &argv[optind - 1];
 			goto main;
 		case 'f':
-			font_size = atoi(optarg);
+			ktterm_full_screen = TRUE;
 			break;
 		case 'r':
 			ktterm_reverse_video = TRUE;
 			break;
-		case 'v':
-			ktterm_full_screen = TRUE;
+		case 's':
+			font_size = atoi(optarg);
 			break;
 
 		default:
