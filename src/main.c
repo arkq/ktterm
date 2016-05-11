@@ -30,6 +30,7 @@
 #define KT_VTE_FONT_SIZE 6
 
 /* Default configuration. */
+gboolean ktterm_landscape = FALSE;
 gboolean ktterm_full_screen = FALSE;
 gboolean ktterm_reverse_video = FALSE;
 gboolean ktterm_show_keyboard = TRUE;
@@ -43,25 +44,6 @@ static GtkWindow *window = NULL;
 static VteTerminal *terminal = NULL;
 static GtkWidget *keyboard = NULL;
 
-
-static void set_window_size(gboolean keyboard_visible) {
-
-	GdkGeometry hints;
-
-	hints.min_width = hints.max_width = 600;
-	hints.min_height = hints.max_height = 800;
-
-	/* height corrections for non-full-screen mode */
-	if (!ktterm_full_screen)
-		hints.min_height = hints.max_height -= 30;
-
-	/* correction for Kindle keyboard */
-	if (ktterm_use_kindle_keyboard && keyboard_visible)
-		hints.min_height = hints.max_height -= 275;
-
-	gtk_window_set_geometry_hints(window, NULL, &hints,
-			(GdkWindowHints)(GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE));
-}
 
 /* Lipc convenience wrapper for setting string property. On success this
  * function returns TRUE, otherwise FALSE. */
@@ -96,40 +78,34 @@ static gboolean lipc_set_string_property(char *publisher, char *prop, char *valu
 #endif
 }
 
+static void update_window_placement(void) {
+	kt_window_set_placement(window, KT_WINDOW_LAYER_APPLICATION,
+			ktterm_full_screen ? KT_WINDOW_PLACEMENT_FULLSCREEN : KT_WINDOW_PLACEMENT_MAXIMIZED,
+			ktterm_landscape ? KT_WINDOW_ORIENTATION_RIGHT | KT_WINDOW_ORIENTATION_LEFT : 0,
+			"application", PACKAGE);
+}
+
 static void show_keyboard(gboolean show) {
 
 	/* use external Kindle-on-board keyboard */
 	if (ktterm_use_kindle_keyboard) {
-
-		/* show keyboard, and then shrink the terminal window */
-		if (show) {
-			lipc_set_string_property("com.lab126.keyboard", "open", PACKAGE ":abc:0");
-			set_window_size(TRUE);
-		}
-		/* enlarge the terminal window, and then hide keyboard */
-		else {
-			set_window_size(FALSE);
-			lipc_set_string_property("com.lab126.keyboard", "close", PACKAGE);
-		}
-
-	}
-	/* use the embedded keyboard */
-	else {
 		if (show)
-			gtk_widget_show(keyboard);
+			lipc_set_string_property("com.lab126.keyboard", "open", PACKAGE ":abc:0");
 		else
-			gtk_widget_hide(keyboard);
+			lipc_set_string_property("com.lab126.keyboard", "close", PACKAGE);
 	}
+
+	if (show)
+		gtk_widget_show(keyboard);
+	else
+		gtk_widget_hide(keyboard);
+
 }
 
 /* Callback function which handles terminal button press event. Here, we can
  * define an action based on the press position in the terminal widget. */
 static gboolean terminal_event_callback(GtkWidget *widget, GdkEventButton *event, gpointer data) {
 	(void)data;
-
-#ifdef DEBUG
-	printf("bpt: %d %d (%f, %f)\n", event->type, event->button, event->x, event->y);
-#endif
 
 	/* process "hold" actions */
 	if (event->button == KT_TOUCH_HOLD) {
@@ -154,8 +130,12 @@ static gboolean terminal_event_callback(GtkWidget *widget, GdkEventButton *event
 static void resize_event_callback(GtkWidget *widget, GtkAllocation *allocation, void *data) {
 	(void)widget;
 	(void)data;
+
 	if (!ktterm_use_kindle_keyboard)
 		embedded_kb_scale(embedded_kb, allocation->width, -1);
+	else
+		/* TODO: generic way of determining the size of the Kindle keyboard */
+		gtk_widget_set_size_request(keyboard, -1, 275);
 }
 
 /* This callback function handles special sequences (prefixed with the "\uf1f1")
@@ -192,11 +172,11 @@ static gboolean keyboard_key_callback(ktkb_key_mode *key, void *data) {
 		break;
 	case _SSV('W', 'F'):
 		ktterm_full_screen ^= TRUE;
-		if (ktterm_full_screen)
-			kt_window_set_placement(window, KT_WINDOW_PLACEMENT_FULLSCREEN, PACKAGE);
-		else
-			kt_window_set_placement(window, KT_WINDOW_PLACEMENT_MAXIMIZED, PACKAGE);
-		set_window_size(ktterm_show_keyboard);
+		update_window_placement();
+		break;
+	case _SSV('W', 'R'):
+		ktterm_landscape ^= TRUE;
+		update_window_placement();
 		break;
 	}
 
@@ -256,13 +236,6 @@ int main(int argc, char *argv[]) {
 
 main:
 	window = (GtkWindow *)gtk_window_new(GTK_WINDOW_TOPLEVEL);
-
-	kt_window_set_placement(window, KT_WINDOW_PLACEMENT_MAXIMIZED, PACKAGE);
-	if (ktterm_full_screen)
-		kt_window_set_placement(window, KT_WINDOW_PLACEMENT_FULLSCREEN, PACKAGE);
-
-	gtk_window_set_resizable(window, FALSE);
-
 	terminal = (VteTerminal *)vte_terminal_new();
 	keyboard = gtk_event_box_new();
 
@@ -299,9 +272,8 @@ main:
 	gtk_box_pack_end(vbox, keyboard, FALSE, FALSE, 0);
 	gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(vbox));
 
-	show_keyboard(TRUE);
-	set_window_size(TRUE);
-
+	update_window_placement();
+	show_keyboard(ktterm_show_keyboard);
 	gtk_widget_show_all(GTK_WIDGET(window));
 
 	gtk_widget_add_events(GTK_WIDGET(terminal), GDK_BUTTON_PRESS_MASK);

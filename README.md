@@ -8,6 +8,15 @@ KTTerm supports standard `-e` option (available in all (?) terminal emulators), 
 to specify the program and its command line arguments to be run in the KTTerm window. If this
 option is not given, the standard command line interpreter `/bin/sh` is launched.
 
+	$ ktterm -h
+	usage: ktterm [options] [-e CMD [ args ]]
+	  -K        use build-in Kindle keyboard
+	  -R DIR    use DIR as a resources directory
+	  -e CMD    run command with its arguments
+	  -f        run in the full-screen mode
+	  -r        use reversed color palette
+	  -s NB     set terminal font size to NB
+
 ![Screenshot](/screenshot.png?raw=true)
 
 
@@ -15,6 +24,7 @@ Keyboard shortcuts
 ------------------
 
 * `Fn` + `F` - toggle full-screen mode
+* `Fn` + `R` - switch between portrait and landscape mode
 * `Fn` + `plus (+)` - increase font size
 * `Fn` + `minus (-)` - decrease font size
 * `Fn` + `0` - restore font size

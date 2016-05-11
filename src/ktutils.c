@@ -1,6 +1,6 @@
 /*
  * ktterm - ktutils.c
- * Copyright (c) 2013 Arkadiusz Bokowy
+ * Copyright (c) 2013-2016 Arkadiusz Bokowy
  *
  * This file is a part of a ktterm.
  *
@@ -11,27 +11,69 @@
 #include "ktutils.h"
 
 
-/* Set window placement withing the Kindle Touch application framework. The
- * window parameter should be a top-level one. */
-void kt_window_set_placement(GtkWindow *window, KTWindowPlacement placement, const char *app) {
+/* Set window placement within the Kindle window manager framework. The
+ * given GTK window should be a top-level one. */
+void kt_window_set_placement(GtkWindow *window, const gchar *layer,
+		kt_window_placement placement, guchar orientation, const gchar *name,
+		const gchar *id) {
 
+	gchar *title;
 	gchar *tmp;
 
+	title = g_strdup_printf("L:%s_N:%s", layer, name);
+
+	if (id != NULL) {
+		tmp = g_strdup_printf("%s_ID:%s", title, id);
+		g_free(title);
+		title = tmp;
+	}
+
 	switch (placement) {
-	default:
+	case KT_WINDOW_PLACEMENT_FULLSCREEN:
+		tmp = g_strdup_printf("%s_PC:N", title);
+		g_free(title);
+		title = tmp;
+		break;
 	case KT_WINDOW_PLACEMENT_APPLICATION:
-		tmp = g_strdup_printf("L:A_N:application_PC:TS_ID:%s", app);
+		tmp = g_strdup_printf("%s_PC:TS", title);
+		g_free(title);
+		title = tmp;
 		break;
 	case KT_WINDOW_PLACEMENT_MAXIMIZED:
-		tmp = g_strdup_printf("L:A_N:application_ID:%s", app);
-		break;
-	case KT_WINDOW_PLACEMENT_FULLSCREEN:
-		tmp = g_strdup_printf("L:A_N:application_PC:N_ID:%s", app);
 		break;
 	}
 
-	gtk_window_set_title(window, tmp);
-	g_free(tmp);
+	/* construct orientation string based on the supplied mask */
+	if (orientation) {
+
+		struct {
+			guchar flag;
+			gchar orientation;
+		} flags[] = {
+			{ KT_WINDOW_ORIENTATION_UP, 'U' },
+			{ KT_WINDOW_ORIENTATION_DOWN, 'D' },
+			{ KT_WINDOW_ORIENTATION_RIGHT, 'R' },
+			{ KT_WINDOW_ORIENTATION_LEFT, 'L' },
+		};
+
+		gchar buffer[5];
+		int i;
+
+		tmp = buffer;
+		for (i = 0; i < 4; i++)
+			if (orientation & flags[i].flag) {
+				*tmp = flags[i].orientation;
+				tmp++;
+			}
+		*tmp = '\0';
+
+		tmp = g_strdup_printf("%s_O:%s", title, buffer);
+		g_free(title);
+		title = tmp;
+	}
+
+	gtk_window_set_title(window, title);
+	g_free(title);
 }
 
 /* Set terminal color in the standard fashion (black font on white background)
