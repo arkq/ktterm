@@ -39,8 +39,8 @@ gboolean ktterm_use_kindle_keyboard = FALSE;
 static ktkb_keyboard *embedded_kb = NULL;
 
 /* Global window (widget) handlers. */
-static GtkWidget *window = NULL;
-static GtkWidget *terminal = NULL;
+static GtkWindow *window = NULL;
+static VteTerminal *terminal = NULL;
 static GtkWidget *keyboard = NULL;
 
 
@@ -59,7 +59,7 @@ static void set_window_size(gboolean keyboard_visible) {
 	if (ktterm_use_kindle_keyboard && keyboard_visible)
 		hints.min_height = hints.max_height -= 275;
 
-	gtk_window_set_geometry_hints((GtkWindow *)(window), window, &hints,
+	gtk_window_set_geometry_hints(window, NULL, &hints,
 			(GdkWindowHints)(GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE));
 }
 
@@ -180,22 +180,22 @@ static gboolean keyboard_key_callback(ktkb_key_mode *key, void *data) {
 #define _SSV(a, b) (((b) << 8) | (a))
 	switch (special_value) {
 	case _SSV('F', '+'):
-		font_size = kt_terminal_get_font_size((VteTerminal *)terminal);
-		kt_terminal_set_font_size((VteTerminal *)terminal, font_size + 1);
+		font_size = kt_terminal_get_font_size(terminal);
+		kt_terminal_set_font_size(terminal, font_size + 1);
 		break;
 	case _SSV('F', '-'):
-		font_size = kt_terminal_get_font_size((VteTerminal *)terminal);
-		kt_terminal_set_font_size((VteTerminal *)terminal, font_size - 1);
+		font_size = kt_terminal_get_font_size(terminal);
+		kt_terminal_set_font_size(terminal, font_size - 1);
 		break;
 	case _SSV('F', '0'):
-		kt_terminal_set_font_size((VteTerminal *)terminal, KT_VTE_FONT_SIZE);
+		kt_terminal_set_font_size(terminal, KT_VTE_FONT_SIZE);
 		break;
 	case _SSV('W', 'F'):
 		ktterm_full_screen ^= TRUE;
 		if (ktterm_full_screen)
-			kt_window_set_placement((GtkWindow *)window, KT_WINDOW_PLACEMENT_FULLSCREEN, PACKAGE);
+			kt_window_set_placement(window, KT_WINDOW_PLACEMENT_FULLSCREEN, PACKAGE);
 		else
-			kt_window_set_placement((GtkWindow *)window, KT_WINDOW_PLACEMENT_MAXIMIZED, PACKAGE);
+			kt_window_set_placement(window, KT_WINDOW_PLACEMENT_MAXIMIZED, PACKAGE);
 		set_window_size(ktterm_show_keyboard);
 		break;
 	}
@@ -255,24 +255,24 @@ int main(int argc, char *argv[]) {
 	argv = (char **)&shell;
 
 main:
-	window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	window = (GtkWindow *)gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
-	kt_window_set_placement((GtkWindow *)window, KT_WINDOW_PLACEMENT_MAXIMIZED, PACKAGE);
+	kt_window_set_placement(window, KT_WINDOW_PLACEMENT_MAXIMIZED, PACKAGE);
 	if (ktterm_full_screen)
-		kt_window_set_placement((GtkWindow *)window, KT_WINDOW_PLACEMENT_FULLSCREEN, PACKAGE);
+		kt_window_set_placement(window, KT_WINDOW_PLACEMENT_FULLSCREEN, PACKAGE);
 
-	gtk_window_set_resizable((GtkWindow *)window, FALSE);
+	gtk_window_set_resizable(window, FALSE);
 
-	terminal = vte_terminal_new();
+	terminal = (VteTerminal *)vte_terminal_new();
 	keyboard = gtk_event_box_new();
 
 	/* initialize VTE widget */
-	vte_terminal_set_cursor_blink_mode((VteTerminal *)terminal, VTE_CURSOR_BLINK_OFF);
-	vte_terminal_set_cursor_shape((VteTerminal *)terminal, VTE_CURSOR_SHAPE_UNDERLINE);
-	vte_terminal_set_scroll_on_output((VteTerminal *)terminal, TRUE);
-	kt_terminal_set_colors((VteTerminal *)terminal, ktterm_reverse_video);
-	kt_terminal_set_font_size((VteTerminal *)terminal, font_size);
-	vte_terminal_fork_command_full((VteTerminal *)terminal, VTE_PTY_DEFAULT,
+	vte_terminal_set_cursor_blink_mode(terminal, VTE_CURSOR_BLINK_OFF);
+	vte_terminal_set_cursor_shape(terminal, VTE_CURSOR_SHAPE_UNDERLINE);
+	vte_terminal_set_scroll_on_output(terminal, TRUE);
+	kt_terminal_set_colors(terminal, ktterm_reverse_video);
+	kt_terminal_set_font_size(terminal, font_size);
+	vte_terminal_fork_command_full(terminal, VTE_PTY_DEFAULT,
 			NULL, argv, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, NULL);
 
 	/* load resources for the embedded keyboard */
@@ -281,7 +281,7 @@ main:
 		gchar *tmp1 = g_strdup_printf("%s/keyboard.png", resources_dir);
 		gchar *tmp2 = g_strdup_printf("%s/keyboard.cfg", resources_dir);
 
-		embedded_kb = embedded_kb_new(keyboard, (VteTerminal *)terminal, tmp1, tmp2);
+		embedded_kb = embedded_kb_new(keyboard, terminal, tmp1, tmp2);
 		if G_UNLIKELY (embedded_kb == NULL) {
 			fprintf(stderr, "error: unable to load embedded keyboard\n");
 			return EXIT_FAILURE;
@@ -294,17 +294,17 @@ main:
 	}
 
 	/* stitch everything together */
-	GtkWidget *vbox = gtk_vbox_new(FALSE, 0);
-	gtk_box_pack_start((GtkBox *)vbox, terminal, TRUE, TRUE, 0);
-	gtk_box_pack_end((GtkBox *)vbox, keyboard, FALSE, FALSE, 0);
-	gtk_container_add((GtkContainer *)window, vbox);
+	GtkBox *vbox = (GtkBox *)gtk_vbox_new(FALSE, 0);
+	gtk_box_pack_start(vbox, GTK_WIDGET(terminal), TRUE, TRUE, 0);
+	gtk_box_pack_end(vbox, keyboard, FALSE, FALSE, 0);
+	gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(vbox));
 
 	show_keyboard(TRUE);
 	set_window_size(TRUE);
 
-	gtk_widget_show_all(window);
+	gtk_widget_show_all(GTK_WIDGET(window));
 
-	gtk_widget_add_events(terminal, GDK_BUTTON_PRESS_MASK);
+	gtk_widget_add_events(GTK_WIDGET(terminal), GDK_BUTTON_PRESS_MASK);
 	g_signal_connect(terminal, "motion-notify-event", G_CALLBACK(gtk_true), NULL);
 	g_signal_connect(terminal, "button-press-event", G_CALLBACK(terminal_event_callback), NULL);
 	g_signal_connect(window, "size-allocate", G_CALLBACK(resize_event_callback), NULL);
