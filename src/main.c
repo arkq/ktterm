@@ -71,7 +71,7 @@ static gboolean lipc_set_string_property(char *publisher, char *prop, char *valu
 	LIPC *lipc;
 	LIPCcode code;
 
-	if ((lipc = LipcOpenNoName()) == NULL)
+	if G_UNLIKELY ((lipc = LipcOpenNoName()) == NULL)
 		return FALSE;
 
 	code = LipcSetStringProperty(lipc, publisher, prop, value);
@@ -85,10 +85,10 @@ static gboolean lipc_set_string_property(char *publisher, char *prop, char *valu
 	pid_t pid;
 	int status;
 
-	if (posix_spawn(&pid, lipc_set_prop_bin, NULL, NULL, v_argv, NULL))
+	if G_UNLIKELY (posix_spawn(&pid, lipc_set_prop_bin, NULL, NULL, v_argv, NULL))
 		return FALSE;
 
-	if (waitpid(pid, &status, 0) != -1 && WIFEXITED(status))
+	if G_LIKELY (waitpid(pid, &status, 0) != -1 && WIFEXITED(status))
 		return !WEXITSTATUS(status);
 
 	return FALSE;
